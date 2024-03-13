@@ -1,0 +1,105 @@
+﻿@page "/"
+@rendermode InteractiveServer
+<div class="position-relative min-vh-80">
+    <div class="position-absolute search-container">
+        <div class="d-flex justify-content-center mb-3">
+            <img src="/logo.png" style="width: 150px; height: 150px;" />
+        </div>
+        <AutoComplete class="search-input" @bind-Value="userQuery"
+            id="autoComplete"
+            TItem="Food"
+            DataProvider="FoodsDataProvider"
+            PropertyName="FoodName"
+            @onkeypress="OnAutoCompleteKeyDown"
+            OnChanged="(Food food) => OnAutoCompleteChanged(food)" />
+    </div>
+</div>
+
+
+
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+
+@code {
+    private AutoResponse searchResult;
+    private string userQuery = "";
+    private Timer debounceTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+    }
+
+    private async Task HandleSubmit()
+    {
+        Navigation.NavigateTo($"/search?q={userQuery}");
+    }
+
+    private async Task<AutoCompleteDataProviderResult<Food>> FoodsDataProvider(AutoCompleteDataProviderRequest<Food> request)
+    {
+        try
+        {
+            var query = request.Filter.Value;
+            userQuery = query;
+            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(request.CancellationToken))
+            {
+                // Add cancellation token to the HTTP request
+                cts.CancelAfter(TimeSpan.FromSeconds(10)); // Set a reasonable timeout
+                searchResult = await Http.GetFromJsonAsync<AutoResponse>($"https://api.mydailybits.com/fooddb/Search/AutoComplete?query={query}&locale=en", cts.Token);
+            }
+
+            var foods = searchResult.Options.Select((f, idx) => new Food(idx, f.prefix + f.suffix));
+
+            return await Task.FromResult(request.ApplyTo(foods));
+        }
+        catch (TaskCanceledException)
+        {
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+            return null;
+        }
+    }
+
+    private async Task OnAutoCompleteInput(ChangeEventArgs e)
+    {
+        userQuery = e.Value.ToString();
+        Console.WriteLine("input " + userQuery);
+    }
+
+    private async Task OnAutoCompleteKeyDown(KeyboardEventArgs e)
+    {
+        Console.WriteLine("press "+e.Code+" "+userQuery);
+        if (e.Code == "Enter")
+        {
+            await HandleSubmit();
+        }
+    }
+
+    private void OnAutoCompleteChanged(Food food)
+    {
+        Console.WriteLine($"'{food?.FoodName}' selected.");
+        if(food?.FoodName != "")
+        {
+            userQuery = food.FoodName;
+            HandleSubmit();
+        }
+    }
+
+    private class AutoResponse
+    {
+        public string? Query { get; set; }
+        public List<AutoOption>? Options { get; set; }
+        public string? Locale { get; set; }
+    }
+
+    private class AutoOption
+    {
+        public string? prefix { get; set; }
+        public string? suffix { get; set; }
+    }
+
+    public record Food(int FoodId, string FoodName);
+}
