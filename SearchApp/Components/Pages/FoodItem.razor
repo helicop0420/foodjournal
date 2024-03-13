@@ -52,7 +52,7 @@ else
                 {
                     @foreach (var Nutrition in FoodInfo.NutritionPer100g)
                     {
-                        <div class="d-flex justify-content-between mb-2">
+                        <div class="d-flex justify-content-between border-bottom mb-2">
                             <h2 class="m-0">@Nutrition.NutritionPoint</h2>
                             <p class="m-0"><span class="fw-bold">@(Double.Round((Nutrition.Value * ServingAmount/100) ?? 0, 3))</span> @ConvertUnit(Nutrition.Unit)</p>
                         </div>
