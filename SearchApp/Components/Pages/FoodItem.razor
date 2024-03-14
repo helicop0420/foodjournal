@@ -12,7 +12,7 @@ else
 {
     <div class="d-flex justify-content-center min-vh-80 mb-5">
         <div class="overflow-auto nutrition-container mt-3 p-2">
-            <Button Color="ButtonColor.Info" @onclick="GoBack"><i class="fa fa-arrow-left" aria-hidden="true"></i>Back</Button>
+            <a class="cursor-point text-decoration-none text-black" @onclick="GoBack"><i class="fa fa-angle-left m-2" aria-hidden="true" style="font-size: 14px;"></i>Back to results</a>
             <h1>Nutrition Facts</h1>
             <p class="m-0">Serving Size @FoodInfo.ServingOptions!.Count</p>
 
@@ -24,7 +24,7 @@ else
                         <DropdownMenu>
                             @foreach(var Option in FoodInfo.ServingOptions)
                             {
-                                <DropdownItem @onclick="() => UpdateServingAmount(Option.Gram ?? 0)" Type="ButtonType.Link">@Option.Gram g</DropdownItem>
+                                <DropdownItem @onclick="() => UpdateServingAmount(Option.Gram)" Type="ButtonType.Link">@Option.Gram g</DropdownItem>
                             }
                         </DropdownMenu>
                     </Dropdown>
@@ -43,7 +43,7 @@ else
                     {
                         <div class="d-flex justify-content-between border-bottom mb-2">
                             <h2 class="m-0">@Nutrition.NutritionPoint</h2>
-                            <p class="m-0"><span class="fw-bold">@(Double.Round((Nutrition.Value * ServingAmount / 100) ?? 0, 3))</span> @ConvertUnit(Nutrition.Unit)</p>
+                            <p class="m-0"><span class="fw-bold">@(Double.Round((Nutrition.Value * ServingAmount / 100), 3))</span> @ConvertUnit(Nutrition.Unit)</p>
                         </div>
                     }
                     <Button Color="ButtonColor.Link" @onclick="OnClickCollapse"> Read More </Button>
@@ -54,7 +54,7 @@ else
                     {
                         <div class="d-flex justify-content-between border-bottom mb-2">
                             <h2 class="m-0">@Nutrition.NutritionPoint</h2>
-                            <p class="m-0"><span class="fw-bold">@(Double.Round((Nutrition.Value * ServingAmount/100) ?? 0, 3))</span> @ConvertUnit(Nutrition.Unit)</p>
+                            <p class="m-0"><span class="fw-bold">@(Double.Round((Nutrition.Value * ServingAmount/100), 3))</span> @ConvertUnit(Nutrition.Unit)</p>
                         </div>
                     }
                     @if (FoodInfo.NutritionPer100g.Count > 10)
@@ -129,7 +129,7 @@ else
         try
         {
             FoodInfo = await Http.GetFromJsonAsync<FoodNutrition>($"https://api.mydailybits.com/fooddb/Nutrition/GetNutrition?itemId={UserQuery}&locale=en");
-            UpdateServingAmount(FoodInfo.ServingOptions[0].Gram ?? 0);
+            UpdateServingAmount(FoodInfo.ServingOptions[0].Gram);
         }
         catch (Exception ex)
         {
@@ -140,13 +140,13 @@ else
     private class ServingOption
     {
         public string? Text { get; set; }
-        public double? Gram { get; set; }
+        public double Gram { get; set; }
     }
 
     private class NutritionPerUnit
     {
         public string? NutritionPoint { get; set; }
-        public double? Value { get; set; }
+        public double Value { get; set; }
         public string? Unit { get; set; }
         public double? PctDailyValue { get; set; }
     }

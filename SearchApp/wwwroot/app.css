@@ -159,3 +159,7 @@ input[type=submit] {
     background-color: DodgerBlue !important;
     color: #ffffff;
 }
+
+.cursor-point:hover {
+  cursor: pointer;
+}
