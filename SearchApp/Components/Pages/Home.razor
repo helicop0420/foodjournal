@@ -1,19 +1,70 @@
 ﻿@page "/"
+@using System.Globalization;
+@using SearchApp.Models
 @rendermode InteractiveServer
-<div class="position-relative min-vh-80">
+
+<div class="position-relative min-vh-80" @onclick="OnClickDocument">
+    <h1>Current Language: @Lang</h1>
     <div class="position-absolute search-container">
         <div class="d-flex justify-content-center mb-3">
             <img src="/logo.png" style="width: 150px; height: 150px;" />
         </div>
-        <AutoComplete class="search-input" @bind-Value="userQuery"
-            id="autoComplete"
-            TItem="Food"
-            DataProvider="FoodsDataProvider"
-            PropertyName="FoodName"
-            @onkeypress="OnAutoCompleteKeyDown"
-            OnChanged="(Food food) => OnAutoCompleteChanged(food)" />
+        <div class="autocomplete" style="width:400px;">
+            <i class="fas fa-search autocomplete-input-icon"></i>
+            <input autocomplete="off" id="myCustomInput" class="form-control" type="text" name="myCountry" placeholder="Type food name..." @oninput="DebouncedGetFoodData" @onkeydown="OnAutoCompleteKeyDown">
+            <div id="autocomplete-list" class="autocomplete-items">
+                @if (FoodList?.Options?.Count > 0)
+                {
+                    @foreach (var Food in FoodList.Options)
+                    {
+                        @if (userQuery.Length <= (Food.prefix+Food.suffix).Length)
+                        {
+                            <div @onclick="() => OnAutoCompleteChanged(Food)">
+                                <i class="fas fa-search mr-1 text-gray"></i>
+                                <strong>@((Food.prefix+Food.suffix).Substring(0, userQuery.Length))</strong>@((Food.prefix + Food.suffix).Substring(userQuery.Length))
+                                <input type="hidden" value="@(Food.prefix+Food.suffix)" />
+                            </div>
+                        }
+                    }
+                }
+            </div>  
+        </div>
     </div>
 </div>
+
+<script>
+    var currentFocus = -1;
+    var inp = document.getElementById("myCustomInput")
+    inp.addEventListener("keydown", function (e) {
+        var x = document.getElementById("autocomplete-list");
+        if (x) x = x.getElementsByTagName("div");
+        if (e.keyCode == 40) {
+            currentFocus++;
+            addActive(x);
+        } else if (e.keyCode == 38) {
+            currentFocus--;
+            addActive(x);
+        } else if (e.keyCode == 13 && currentFocus > -1) {
+            e.preventDefault();
+            if (x) x[currentFocus].click();
+        }
+    });
+    function addActive(x) {
+        if (!x || x.length==0) return false;
+        removeActive(x);
+        if (currentFocus >= x.length) currentFocus = 0;
+        if (currentFocus < 0) currentFocus = (x.length - 1);
+        x[currentFocus].classList.add("autocomplete-active");
+    }
+    function removeActive(x) {
+        for (var i = 0; i < x.length; i++) {
+            x[i].classList.remove("autocomplete-active");
+        }
+    }
+    window.getNavigatorLanguage = function () {
+        return navigator.language || navigator.userLanguage;
+    };
+</script>
 
 
 
@@ -22,12 +73,33 @@
 @inject NavigationManager Navigation
 
 @code {
-    private AutoResponse searchResult;
+    private AutoResponse FoodList;
     private string userQuery = "";
     private Timer debounceTimer;
+    private string Lang = "";
+    private int FocusNo = -1;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Lang = await JSRuntime.InvokeAsync<string>("getNavigatorLanguage");
+            Lang = Lang.Substring(0, 2);
+            StateHasChanged();
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
+        // Lang = await JSRuntime.InvokeAsync<string>("getNavigatorLanguage"); 
+        debounceTimer = new Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await GetFoodData();
+                StateHasChanged();
+            });
+        }, null, Timeout.Infinite, Timeout.Infinite);
     }
 
     private async Task HandleSubmit()
@@ -35,71 +107,56 @@
         Navigation.NavigateTo($"/search?q={userQuery}");
     }
 
-    private async Task<AutoCompleteDataProviderResult<Food>> FoodsDataProvider(AutoCompleteDataProviderRequest<Food> request)
+    private async Task DebouncedGetFoodData(ChangeEventArgs e)
     {
-        try
+        userQuery = e.Value.ToString();
+        RestartDebounceTimer();
+    }
+
+    private void RestartDebounceTimer()
+    {
+        debounceTimer.Change(500, Timeout.Infinite);
+    }
+
+    private async Task GetFoodData()
+    {
+        Console.WriteLine("GetFoodData", userQuery);
+        if (userQuery != "")
         {
-            var query = request.Filter.Value;
-            userQuery = query;
-            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(request.CancellationToken))
+            try
             {
-                // Add cancellation token to the HTTP request
-                cts.CancelAfter(TimeSpan.FromSeconds(10)); // Set a reasonable timeout
-                searchResult = await Http.GetFromJsonAsync<AutoResponse>($"https://api.mydailybits.com/fooddb/Search/AutoComplete?query={query}&locale=en", cts.Token);
+                FoodList = await Http.GetFromJsonAsync<AutoResponse>($"https://api.mydailybits.com/fooddb/Search/AutoComplete?query={userQuery}&locale={Lang}");
             }
-
-            var foods = searchResult.Options.Select((f, idx) => new Food(idx, f.prefix + f.suffix));
-
-            return await Task.FromResult(request.ApplyTo(foods));
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred: {ex.Message}");
+            }
         }
-        catch (TaskCanceledException)
+        else
         {
-            return null;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"An error occurred: {ex.Message}");
-            return null;
+            FoodList = new AutoResponse();
         }
     }
 
-    private async Task OnAutoCompleteInput(ChangeEventArgs e)
+    private void OnClickDocument()
     {
-        userQuery = e.Value.ToString();
-        Console.WriteLine("input " + userQuery);
+        FoodList = new AutoResponse();
     }
 
     private async Task OnAutoCompleteKeyDown(KeyboardEventArgs e)
     {
-        Console.WriteLine("press "+e.Code+" "+userQuery);
         if (e.Code == "Enter")
         {
             await HandleSubmit();
         }
     }
 
-    private void OnAutoCompleteChanged(Food food)
+    private void OnAutoCompleteChanged(AutoOption food)
     {
-        Console.WriteLine($"'{food?.FoodName}' selected.");
-        if(food?.FoodName != "")
+        if(food?.prefix != "")
         {
-            userQuery = food.FoodName;
+            userQuery = food.prefix + food.suffix;
             HandleSubmit();
         }
     }
-
-    private class AutoResponse
-    {
-        public string? Query { get; set; }
-        public List<AutoOption>? Options { get; set; }
-        public string? Locale { get; set; }
-    }
-
-    private class AutoOption
-    {
-        public string? prefix { get; set; }
-        public string? suffix { get; set; }
-    }
-
-    public record Food(int FoodId, string FoodName);
 }
