@@ -112,11 +112,22 @@ h1:focus {
     display: inline-block;
 }
 
+.autocomplete-input-icon {
+    color: gray;
+    position: absolute;
+    top: 12px;
+    left: 10px;
+}
+
 input {
     border: 1px solid transparent;
     background-color: #f1f1f1;
     padding: 10px;
     font-size: 16px;
+}
+
+#myCustomInput {
+    padding-left: 35px;
 }
 
 input[type=text] {
@@ -162,4 +173,12 @@ input[type=submit] {
 
 .cursor-point:hover {
   cursor: pointer;
+}
+
+.mr-1 {
+    margin-right: 5px;
+}
+
+.text-gray {
+    color: gray;
 }

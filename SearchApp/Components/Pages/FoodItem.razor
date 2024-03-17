@@ -1,4 +1,7 @@
 ﻿@page "/food/{Language}/{UserQuery}"
+@using System.Globalization;
+@using SearchApp.Models
+@using SearchApp.Store
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
 
@@ -12,8 +15,8 @@ else
 {
     <div class="d-flex justify-content-center min-vh-80 mb-5">
         <div class="overflow-auto nutrition-container mt-3 p-2">
-            <a class="cursor-point text-decoration-none text-black" @onclick="GoBack"><i class="fa fa-angle-left m-2" aria-hidden="true" style="font-size: 14px;"></i>Back to results</a>
-            <h1>Nutrition Facts</h1>
+            <a class="cursor-point text-decoration-none text-black" href="@UrlStore.prevUrl" style="padding: 20px 20px 20px 0px;"><i class="fa fa-angle-left m-2" aria-hidden="true" style="font-size: 14px;"></i>Back to results</a>
+            <h1 class="my-3">Nutrition Facts</h1>
             <p class="m-0">Serving Size @FoodInfo.ServingOptions!.Count</p>
 
             <div class="top-border">
@@ -110,11 +113,6 @@ else
         IsCollapse = !IsCollapse;
     }
 
-    private async Task GoBack()
-    {
-        await JSRuntime.InvokeVoidAsync("blazorNavigateBack");
-    }
-
     private string ConvertUnit(string unit)
     {
         if (unit == "milligram") return "mg";
@@ -128,32 +126,12 @@ else
 
         try
         {
-            FoodInfo = await Http.GetFromJsonAsync<FoodNutrition>($"https://api.mydailybits.com/fooddb/Nutrition/GetNutrition?itemId={UserQuery}&locale=en");
+            FoodInfo = await Http.GetFromJsonAsync<FoodNutrition>($"https://api.mydailybits.com/fooddb/Nutrition/GetNutrition?itemId={UserQuery}&locale={Language}");
             UpdateServingAmount(FoodInfo.ServingOptions[0].Gram);
         }
         catch (Exception ex)
         {
             Console.WriteLine("Something went wrong!");
         }
-    }
-
-    private class ServingOption
-    {
-        public string? Text { get; set; }
-        public double Gram { get; set; }
-    }
-
-    private class NutritionPerUnit
-    {
-        public string? NutritionPoint { get; set; }
-        public double Value { get; set; }
-        public string? Unit { get; set; }
-        public double? PctDailyValue { get; set; }
-    }
-
-    private class FoodNutrition
-    {
-        public List<ServingOption>? ServingOptions { get; set; }
-        public List<NutritionPerUnit>? NutritionPer100g { get; set; }
     }
 }
